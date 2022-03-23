@@ -1,0 +1,26 @@
+Install SDK if needed
+    dpkg -i upmem_2020.2.1_arm64.deb
+
+Homomorphe use case (usecases/dpu_crypto)
+
+    source /usr/upmem_env.sh hw && modprobe pim
+
+    Compile the aes lib
+    make lib
+
+    Compile the tandem PoC and Host binary - encryption done with a freshly generated key
+    cd tandem/PoC && make
+
+    Compile the tandem PoC and Host binary - encryption done with a wrong key
+    cd tandem/PoC && make clean && make ENC_KO=1
+
+    Execute the tandem PoC binary
+    cd tandem/PoC && ./aes_host
+
+In usecases/dpu_crypto:
+
+Generate a random key
+    dd if=/dev/urandom of=key bs=32 count=1
+
+Use the freshly generated key
+    make update_key && make && ./aes_host

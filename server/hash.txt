@@ -1,0 +1,1 @@
+SHA256(hello_world_dpu.text)= 77:78:1a:a0:ce:0b:75:77:ee:28:fd:a0:46:11:8b:bd:11:ac:ac:30:a6:54:78:5a:37:6f:f3:0e:b3:f0:ec:0f
