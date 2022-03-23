@@ -1,0 +1,35 @@
+Install SDK if needed
+    dpkg -i upmem_2020.2.1_arm64.deb
+
+ECDSA signature verification (usecases/libecc)
+
+    source /usr/upmem_env.sh hw && modprobe pim
+
+    Compile the ecc lib
+    make 32  CC=dpu-upmem-dpurte-clang
+
+    Compile the DPU and Host binary
+    make 32  CC=dpu-upmem-dpurte-clang -C src/DPU/
+
+    Compile the DPU and Host binary with a bad signature
+    make 32  CC=dpu-upmem-dpurte-clang SIG_KO=1 -C src/DPU/
+
+    Compile the DPU and Host to verify the image without jumping into it (e.g. u-boot signature verification)
+    make 32  CC=dpu-upmem-dpurte-clang VERIFY_ONLY=1 -C src/DPU/
+
+    Execute the DPU binary
+    cd src/DPU/ && ./ecdsa_host  && cd -
+
+Generate signature data (public key, hash, signature with OPENSSL) to be put in user_sig_data.h:
+    Generata private key in PEM format
+	openssl ecparam -name prime256v1 -genkey -out ec-prime256v1-priv-key.pem
+
+    Generate public key (text) from private key (remove the initial 0x4)
+	openssl ec -in ec-prime256v1-priv-key.pem -text -noout  > public_key.txt
+
+    Generate SHA-256
+	openssl dgst -hex -c -sha256 hello_world_dpu.text > hash.txt
+
+    Generate the signature (remove 3046 then 022100 before each coordinate - if not present discard and generate again)
+	openssl dgst -sha256 -sign ec-prime256v1-priv-key.pem hello_world_dpu.text > signature.hex
+	hexdump -v -e '/1 "%02X"' < signature.hex > signature.txt
