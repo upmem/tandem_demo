@@ -4,7 +4,7 @@
 
 #include <mram.h>
 #include "dpu_jump.h"
-#include "ecdsa.h"
+#include "dpu_def.h"
 
 /* ECC P-256 context */
 static uint8_t params[] = {

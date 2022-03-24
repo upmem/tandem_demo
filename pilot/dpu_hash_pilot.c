@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include <mram.h>
-#include "ecdsa.h"
+#include "dpu_def.h"
 
 __mram_noinit mram_t mram;
 
