@@ -1,0 +1,7 @@
+#!/bin/bash -x
+input_filename=$1
+output_filename=$2
+cp $input_filename $output_filename
+size=$(stat -c %s "$input_filename")
+pad_size=$((16 - ($size % 16)))
+dd if=/dev/zero of=$output_filename bs=1 count=$pad_size seek=$size

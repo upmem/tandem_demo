@@ -10,6 +10,7 @@ WARNING_CFLAGS ?= -Wall -Wextra
 HOST_LDFLAGS = `dpu-pkg-config --libs dpu`
 HOST_CFLAGS = $(WARNING_CFLAGS) -std=c11 `dpu-pkg-config --cflags dpu` -O2
 HOST_CFLAGS += -I$(PILOT_ROOT_DIR)
+KEY = $(shell hexdump -v -e '/1 "%02X"' < key)
 
 ifdef SIG_KO
 HOST_CFLAGS += -DSIG_KO
@@ -32,10 +33,12 @@ dpu_app_server:
 	#Copy bytes manually in a binary called public_key.bin - not needed public key is in the repo
 	#ghex public_key.bin
 	#Generate SHA-256
-	openssl dgst -binary -sha256 dpu_app_server.text > dpu_app_server.sha256
+	./file_pad dpu_app_server.text dpu_app_server.text.pad
+	openssl dgst -binary -sha256 dpu_app_server.text.pad > dpu_app_server.sha256
     #Generate the signature (remove 3046 then 022100 before each coordinate - if not preset discard the signature)
-	openssl dgst -sha256 -sign ec-prime256v1-priv-key.pem dpu_app_server.text > dpu_app_server.sig
-	
+	openssl dgst -sha256 -sign ec-prime256v1-priv-key.pem dpu_app_server.text.pad > dpu_app_server.sig
+	#encrypt the text section
+	openssl aes-256-ecb -nopad -in  dpu_app_server.text.pad -out  dpu_app_server.text.enc -K $(KEY)
 host:
 	$(HOST_CC) $(HOST_CFLAGS) host_app_server.c $(HOST_LDFLAGS) -o host_app_server
 
