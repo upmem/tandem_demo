@@ -5,6 +5,8 @@ DPU_OBJDUMP = llvm-objdump
 ROOT_DIR = ..
 LIBECC_ROOT_DIR=$(ROOT_DIR)/libs/libecc
 LIBCRYPTO_ROOT_DIR=$(ROOT_DIR)/libs/libcrypto
+CRYPTO_LIBRARY ?= $(ROOT_DIR)/libs/libcrypto.a
+
 
 include $(LIBECC_ROOT_DIR)/common.mk
 
@@ -22,6 +24,8 @@ dpu_pilot:
 	$(DPU_CC) $(BIN_CFLAGS) dpu_ecdsa_pilot.c $(LIBECC_ROOT_DIR)/src/external_deps/rand.c dpu_jump.c  $(LIBSIGN) $(BIN_LDFLAGS) -o dpu_ecdsa_pilot
 	$(DPU_OBJDUMP) -xS  dpu_ecdsa_pilot > dpu_ecdsa_pilot.objdump
 	$(DPU_CC) $(BIN_CFLAGS) dpu_hash_pilot.c $(LIBSIGN) $(BIN_LDFLAGS) -o dpu_hash_pilot
+	$(DPU_CC) $(BIN_CFLAGS) dpu_aes_pilot.c $(BIN_LDFLAGS) $(CRYPTO_LIBRARY) -o dpu_aes_pilot
+
 
 clean:
 	@rm -f dpu_ecdsa_pilot  dpu_ecdsa_pilot.objdump  

@@ -11,9 +11,9 @@ typedef struct {
     uint8_t pub_key[P256_PUB_KEY_SIZE] __dma_aligned;
     uint8_t hash[SHA256_SIZE] __dma_aligned ;
     uint8_t signature[P256_SIG_SIZE] __dma_aligned;
-    unsigned int app_text_size;
+    int app_text_size;
     uint8_t		 app_text[APP_MAX_SIZE]  __dma_aligned;
-    unsigned int app_data_size;
+    int app_data_size;
     uint8_t		 app_data[APP_MAX_SIZE]  __dma_aligned;
     uint8_t		 code[] __dma_aligned;
 } mram_t;
