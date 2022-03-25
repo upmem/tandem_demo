@@ -213,7 +213,7 @@ int main(void)
     int fdpim, fdbin;
     int status = EXIT_FAILURE;
     uint8_t expected_hash[SHA256_SIZE];
-    //uint8_t expected_app_text[APP_MAX_SIZE];
+    uint8_t expected_app_text[APP_MAX_SIZE];
 
     /* Open pim node */
     fdpim = open("/dev/pim", O_RDWR);
@@ -240,28 +240,74 @@ int main(void)
         if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_AES, dpu0_mram->code, dpu1_mram->code) != 0) {
             break;
         }
-
         /* Offload SHA256 calculation to DPUs */
         if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_HASH, dpu0_mram->code, dpu1_mram->code) != 0) {
             break;
         }
 
         /* Check plaintext against expected value */
-        /*fdbin = open(APP_TEXT_BINARY,O_RDONLY);
+        fdbin = open(APP_TEXT_BINARY,O_RDONLY);
         if (fdbin < 0) {
             perror("Failed to open APP_TEXT_BINARY");
             break;
         }
-        read(fdbin, expected_app_text, SHA256_SIZE);
+        read(fdbin, expected_app_text, dpu0_mram->app_text_size);
         close(fdbin);
         if (
             (memcmp(dpu0_mram->app_text, expected_app_text, dpu0_mram->app_text_size) !=0) ||
             (memcmp(dpu1_mram->app_text, expected_app_text, dpu0_mram->app_text_size) !=0)
         ) {
+#if 0
+            printf ("expected app: \n");
+            for (int i=0;i<64; i++) {
+                if ((i % 32) == 0){
+                    printf ("\n");
+                }
+                printf("0x%x ", expected_app_text[i]);
+            }
+            printf ("...\n");
+            for (int i=0;i<64; i++) {
+                if ((i % 32) == 0){
+                    printf ("\n");
+                }
+                printf("0x%x ", expected_app_text[dpu0_mram->app_text_size - 64 + i]);
+            }
+            printf ("\n");
+
+            printf ("plaintex app dpu0: \n");
+            for (int i=0;i<64; i++) {
+                if ((i % 32) == 0){
+                    printf ("\n");
+                }
+                printf("0x%x ", dpu0_mram->app_text[i]);
+            }
+            printf ("...\n");
+            for (int i=0;i<64; i++) {
+                if ((i % 32) == 0){
+                    printf ("\n");
+                }
+                printf("0x%x ", dpu0_mram->app_text[dpu0_mram->app_text_size - 64 + i]);
+            }
+            printf ("\n");
+            printf ("plaintex app dpu1: \n");
+            for (int i=0;i<64; i++) {
+                if ((i % 32) == 0){
+                    printf ("\n");
+                }
+                printf("0x%x ", dpu1_mram->app_text[i]);
+            }
+            printf ("...\n");
+            for (int i=0;i<64; i++) {
+                if ((i % 32) == 0){
+                    printf ("\n");
+                }
+                printf("0x%x ", dpu1_mram->app_text[dpu0_mram->app_text_size - 64 + i]);
+            }
+            printf ("\n");
+#endif
             printf("#### Error app plaintext doesn't match the expected value\n");
             break;
         }
-        */
 
         /* Check hash value against expected value */
         /* Hash is calculated and copied by the dedicated DPU application */
