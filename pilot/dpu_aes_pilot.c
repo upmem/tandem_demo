@@ -5,7 +5,7 @@
 #include "aes.h"
 #include "key.h"
 #include "dpu_jump.h"
-#include "dpu_def.h"
+#include "dpu_common.h"
 #include "platform_util.h"
 #include "config.h"
 
