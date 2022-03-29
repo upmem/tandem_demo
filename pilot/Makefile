@@ -13,7 +13,7 @@ include $(LIBECC_ROOT_DIR)/common.mk
 LIBCRYPTO ?= $(ROOT_DIR)/libs/libcrypto.a
 LIBSIGN = $(ROOT_DIR)/libs/libsign.a
 
-CFLAGS += -I$(LIBECC_ROOT_DIR)/src/ -I$(LIBECC_ROOT_DIR)/src/external_deps -I$(LIBCRYPTO_ROOT_DIR)/include
+CFLAGS += -I$(LIBECC_ROOT_DIR)/src/ -I$(LIBECC_ROOT_DIR)/src/external_deps -I$(LIBCRYPTO_ROOT_DIR)/include -I$(ROOT_DIR)/include
 
 WARNING_CFLAGS ?= -Wall -Wextra
 BIN_LDFLAGS += -Wl,-T$(ROOT_DIR)/dpu_common/dpu.lds

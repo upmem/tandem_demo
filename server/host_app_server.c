@@ -1,88 +1,27 @@
-#include <assert.h>
-#include <stdio.h>
-
-#include <dpu.h>
-#include <dpu_management.h>
-#include <assert.h>
 #include <fcntl.h>
-#include <linux/mman.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
-#include <alloca.h>
 #include "pim.h"
-#define __dma_aligned __attribute__((aligned(8)))
-#include "dpu_def.h"
+#include "dpu_common.h"
+#include "host_common.h"
 
-
-#define DPU_CLUSTER_MEMORY_SIZE (64U<<20)
-#define DER_FORMAT_MAX_SIZE (72)
 /* In this demostrator the Host is also playing the role of Pilot */
 #define PILOT_DPU_BINARY_AES "../pilot/dpu_aes_pilot"
 #define PILOT_DPU_BINARY_ECDSA "../pilot/dpu_ecdsa_pilot"
 #define PILOT_DPU_BINARY_HASH "../pilot/dpu_hash_pilot"
 
-#define APP_TEXT_BINARY "./dpu_app_server.text.pad"
-#define APP_ENC_TEXT_BINARY "./dpu_app_server.text.enc"
-#define APP_DATA_BINARY "./dpu_app_server.data"
-#define APP_PUBKEY_BINARY "./public_key.bin"
-#define APP_HASH_BINARY "./dpu_app_server.sha256"
-#define APP_SIGNATURE_BINARY "./dpu_app_server.sig"
-
-
-extern int usleep (__useconds_t __useconds);
-
-
-static void der_to_sig (uint8_t *der, uint8_t *sig) {
-    uint8_t *r_hdr = NULL;
-    uint8_t *r = NULL;
-    uint8_t *s_hdr = NULL;
-    uint8_t *s = NULL;
-
-    r_hdr = &der[3];
-    switch (*r_hdr) {
-        case 0x21:
-            /* skip the leading 0x0 */
-            r = r_hdr + 2;
-            break;
-        case 0x20:
-            r = r_hdr + 1;
-            break;
-        default:
-            printf("unexpected value 0x%x\n", *r_hdr);
-            break;
-    }
-    s_hdr = r_hdr + *r_hdr + 2;
-    switch (*s_hdr) {
-        case 0x21:
-            s = s_hdr + 2;
-            break;
-        case 0x20:
-            s = s_hdr + 1;
-            break;
-        default:
-            printf("unexpected value 0x%x\n", *s_hdr);
-            break;
-    }
-
-    memcpy(sig, r, P256_SIG_SIZE/2);
-    memcpy(&sig[P256_SIG_SIZE/2], s, P256_SIG_SIZE/2);
-#if 0
-    for (uint8_t i =0; i< P256_SIG_SIZE ; i++){
-        if (i%16 ==0) {
-            printf("\n");
-        }
-        printf ("0x%x ", sig[i]);
-    }
-    printf("\n");
-#endif
-}
+/* DPU application run on server */
+#define SERVER_DPU_APP_TEXT "./dpu_app_server.text.pad"
+#define SERVER_DPU_APP_TEXT_ENC "./dpu_app_server.text.enc"
+#define SERVER_DPU_APP_DATA "./dpu_app_server.data"
+#define SERVER_DPU_APP_PUBKEY "./public_key.bin"
+#define SERVER_DPU_APP_HASH "./dpu_app_server.sha256"
+#define SERVER_DPU_APP_SIG "./dpu_app_server.sig"
 
 static void load_sign_data(mram_t *area)
 {
@@ -95,16 +34,16 @@ static void load_sign_data(mram_t *area)
 #else
     area->dpu_policy = DPU_POLICY_VERIFY_AND_JUMP;
 #endif
-    fdbin = open(APP_PUBKEY_BINARY,O_RDONLY);
+    fdbin = open(SERVER_DPU_APP_PUBKEY,O_RDONLY);
     if (fdbin < 0) {
-        perror("Failed to open APP_PUBKEY_BINARY\n");
+        perror("Failed to open SERVER_DPU_APP_PUBKEY\n");
         return;
     }
     read(fdbin, area->pub_key, P256_PUB_KEY_SIZE);
     close(fdbin);
-    fdbin = open(APP_SIGNATURE_BINARY,O_RDONLY);
+    fdbin = open(SERVER_DPU_APP_SIG,O_RDONLY);
     if (fdbin < 0) {
-        perror("Failed to open APP_SIGNATURE_BINARY\n");
+        perror("Failed to open SERVER_DPU_APP_SIG\n");
         return;
     }
     read(fdbin, der_signature, DER_FORMAT_MAX_SIZE);
@@ -117,94 +56,23 @@ static void load_sign_data(mram_t *area)
 #endif
 
     /* Copying encrypted user application code */
-    fdbin = open(APP_ENC_TEXT_BINARY,O_RDONLY);
+    fdbin = open(SERVER_DPU_APP_TEXT_ENC,O_RDONLY);
     if (fdbin < 0) {
-        perror("Failed to open APP_ENC_TEXT_BINARY");
+        perror("Failed to open SERVER_DPU_APP_TEXT_ENC");
         return;
     }
     area->app_text_size = read(fdbin, area->app_text, APP_MAX_SIZE);
-    printf ("area->app_text_size 0x%d\n", area->app_text_size);
     close(fdbin);
     /* Copying user application (Hello World) data */
-    fdbin = open(APP_DATA_BINARY,O_RDONLY);
+    fdbin = open(SERVER_DPU_APP_DATA,O_RDONLY);
     if (fdbin < 0) {
-        perror("Failed to open APP_DATA_BINARY");
+        perror("Failed to open SERVER_DPU_APP_DATA");
         return;
     }
     area->app_data_size = read(fdbin, area->app_data, APP_MAX_SIZE);
+    area->verification_status = -1;
+
     close(fdbin);
-}
-
-static void print_secure(int fdpim)
-{
-    printf("======================= Display secure memory =======================\n");
-    fflush(stdout);
-    usleep(20000);
-    if (ioctl(fdpim, PIM_IOCTL_SHOW_S_MRAM, NULL) != 0) {
-        printf("Failed to call TEE\n");
-    }
-    printf("=====================================================================\n");
-    fflush(stdout);
-}
-
-static int dpu_pair_run (int fdpim, const char *dpu_bin, void *dpu0_code_ptr, void *dpu1_code_ptr) {
-    int fdbin, byte_num;
-    pim_params_t params;
-    int status = -1;
-    do {
-        /* Copy DPU application elf to MRAM */
-        fdbin = open(dpu_bin, O_RDONLY);
-        if (fdbin < 0) {
-            perror("Failed to open DPU_BINARY");
-            break;
-        }
-        byte_num = read(fdbin, dpu0_code_ptr, (DPU_CLUSTER_MEMORY_SIZE/2));
-        if (byte_num == 0) {
-            perror("DPU_BINARY is empty");
-            break;
-        }
-        lseek(fdbin, 0, SEEK_SET);
-        read(fdbin, dpu1_code_ptr, byte_num);
-        close(fdbin);
-
-        /* Load and run DPU program */
-        params.arg1 = (uint64_t)(dpu0_code_ptr);
-        params.arg2 = (uint64_t)(dpu1_code_ptr);
-        if (ioctl(fdpim, PIM_IOCTL_LOAD_DPU, &params) < 0 ) {
-            perror("Failed to control pim");
-            break;
-        }
-
-        /* Poll DPU0 */
-        do {
-            params.arg1 = (uint64_t)dpu0_code_ptr;
-            if (ioctl(fdpim, PIM_IOCTL_GET_DPU_STATUS, &params) !=0 ) {
-                perror("Failed to poll pim");
-                break;
-            }
-        } while (params.ret1 == 1);
-        if (params.ret1 != 0) {
-            printf("Polling returned %ld %ld\n", params.ret0, params.ret1);
-            break;
-        }
-
-        /* Poll DPU1 */
-        do {
-            params.arg1 = (uint64_t)dpu1_code_ptr;
-            if (ioctl(fdpim, PIM_IOCTL_GET_DPU_STATUS, &params) != 0 ) {
-                perror("Failed to poll pim");
-                break;
-            }
-        } while (params.ret1 == 1);
-        if (params.ret1 != 0) {
-            printf("Polling returned %ld %ld\n", params.ret0, params.ret1);
-            break;
-        }
-
-        status = 0;
-
-    } while (0);
-    return status;
 }
 
 int main(void)
@@ -237,115 +105,54 @@ int main(void)
         load_sign_data(dpu1_mram);
 
         /* Offload AES decryption to DPUs */
-        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_AES, dpu0_mram->code, dpu1_mram->code) != 0) {
+        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_AES, dpu0_mram->code, dpu1_mram->code, POLL_DPU) != 0) {
             break;
         }
         /* Offload SHA256 calculation to DPUs */
-        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_HASH, dpu0_mram->code, dpu1_mram->code) != 0) {
+        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_HASH, dpu0_mram->code, dpu1_mram->code, POLL_DPU) != 0) {
             break;
         }
 
         /* Check plaintext against expected value */
-        fdbin = open(APP_TEXT_BINARY,O_RDONLY);
+        fdbin = open(SERVER_DPU_APP_TEXT,O_RDONLY);
         if (fdbin < 0) {
-            perror("Failed to open APP_TEXT_BINARY");
+            perror("Failed to open SERVER_DPU_APP_TEXT");
             break;
         }
         read(fdbin, expected_app_text, dpu0_mram->app_text_size);
         close(fdbin);
-        if (
-            (memcmp(dpu0_mram->app_text, expected_app_text, dpu0_mram->app_text_size) !=0) ||
-            (memcmp(dpu1_mram->app_text, expected_app_text, dpu0_mram->app_text_size) !=0)
-        ) {
-#if 0
-            printf ("expected app: \n");
-            for (int i=0;i<64; i++) {
-                if ((i % 32) == 0){
-                    printf ("\n");
-                }
-                printf("0x%x ", expected_app_text[i]);
-            }
-            printf ("...\n");
-            for (int i=0;i<64; i++) {
-                if ((i % 32) == 0){
-                    printf ("\n");
-                }
-                printf("0x%x ", expected_app_text[dpu0_mram->app_text_size - 64 + i]);
-            }
-            printf ("\n");
 
-            printf ("plaintex app dpu0: \n");
-            for (int i=0;i<64; i++) {
-                if ((i % 32) == 0){
-                    printf ("\n");
-                }
-                printf("0x%x ", dpu0_mram->app_text[i]);
-            }
-            printf ("...\n");
-            for (int i=0;i<64; i++) {
-                if ((i % 32) == 0){
-                    printf ("\n");
-                }
-                printf("0x%x ", dpu0_mram->app_text[dpu0_mram->app_text_size - 64 + i]);
-            }
-            printf ("\n");
-            printf ("plaintex app dpu1: \n");
-            for (int i=0;i<64; i++) {
-                if ((i % 32) == 0){
-                    printf ("\n");
-                }
-                printf("0x%x ", dpu1_mram->app_text[i]);
-            }
-            printf ("...\n");
-            for (int i=0;i<64; i++) {
-                if ((i % 32) == 0){
-                    printf ("\n");
-                }
-                printf("0x%x ", dpu1_mram->app_text[dpu0_mram->app_text_size - 64 + i]);
-            }
-            printf ("\n");
-#endif
+        if (memcmp(dpu1_mram->app_text, expected_app_text, dpu1_mram->app_text_size) !=0)
+        {
             printf("#### Error app plaintext doesn't match the expected value\n");
             break;
         }
 
         /* Check hash value against expected value */
         /* Hash is calculated and copied by the dedicated DPU application */
-        fdbin = open(APP_HASH_BINARY,O_RDONLY);
+        fdbin = open(SERVER_DPU_APP_HASH,O_RDONLY);
         if (fdbin < 0) {
-            perror("Failed to open APP_HASH_BINARY");
+            perror("Failed to open SERVER_DPU_APP_HASH");
             break;
         }
         read(fdbin, expected_hash, SHA256_SIZE);
         close(fdbin);
-        if (
-            (memcmp(dpu0_mram->hash, expected_hash, sizeof(expected_hash)) !=0) ||
-            (memcmp(dpu1_mram->hash, expected_hash, sizeof(expected_hash)) !=0)
-        ) {
+        if (memcmp(dpu1_mram->hash, expected_hash, sizeof(expected_hash)) !=0)
+        {
             printf("#### Error DPU hash doesn't match the expected value\n");
-            //break;
+            break;
         }
         printf("#### SHA256 all good!\n");
 
-
         /* Offload ECDSA P-256 signature verification to DPUs */
-        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_ECDSA, dpu0_mram->code, dpu1_mram->code) != 0) {
+        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_ECDSA, dpu0_mram->code, dpu1_mram->code, DO_NOT_POLL_DPU) != 0) {
             break;
         }
+
         /* check verification status */
-        if (
-            (dpu0_mram->verification_status != 0) ||
-            (dpu1_mram->verification_status != 0)
-        ) {
-            printf("#### ECDSA P-256 signature verification failed, %ld %ld\n", dpu0_mram->verification_status, dpu1_mram->verification_status);
-            break;
-        }
+        while (dpu1_mram->verification_status != 0){ }
         printf("#### ECDSA P-256 signature verification all good!\n");
-
-        /* print secure MRAM content */
-        print_secure(fdpim);
         status = EXIT_SUCCESS;
-
     } while(0);
 
     /* Exit gracefully */
