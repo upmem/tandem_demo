@@ -16,12 +16,14 @@
 #define PILOT_DPU_BINARY_HASH "../pilot/dpu_hash_pilot"
 
 /* DPU application run on server */
-#define SERVER_DPU_APP_TEXT "./dpu_app_server.text.pad"
-#define SERVER_DPU_APP_TEXT_ENC "./dpu_app_server.text.enc"
-#define SERVER_DPU_APP_DATA "./dpu_app_server.data"
-#define SERVER_DPU_APP_PUBKEY "./public_key.bin"
-#define SERVER_DPU_APP_HASH "./dpu_app_server.sha256"
-#define SERVER_DPU_APP_SIG "./dpu_app_server.sig"
+#define DEVICE_DPU_APP_TEXT "./dpu_app_device.text.pad"
+#define DEVICE_DPU_APP_TEXT_ENC "./dpu_app_device.text.enc"
+#define DEVICE_DPU_APP_DATA "./dpu_app_device.data"
+#define DEVICE_DPU_APP_PUBKEY "./public_key.bin"
+#define DEVICE_DPU_APP_HASH "./dpu_app_device.sha256"
+#define DEVICE_DPU_APP_SIG "./dpu_app_device.sig"
+#define PSEUDO_RANDOM "/dev/urandom"
+
 
 static void load_sign_data(mram_t *area)
 {
@@ -34,14 +36,14 @@ static void load_sign_data(mram_t *area)
 #else
     area->dpu_policy = DPU_POLICY_VERIFY_AND_JUMP;
 #endif
-    fdbin = open(SERVER_DPU_APP_PUBKEY,O_RDONLY);
+    fdbin = open(DEVICE_DPU_APP_PUBKEY,O_RDONLY);
     if (fdbin < 0) {
         perror("Failed to open SERVER_DPU_APP_PUBKEY\n");
         return;
     }
     read(fdbin, area->pub_key, P256_PUB_KEY_SIZE);
     close(fdbin);
-    fdbin = open(SERVER_DPU_APP_SIG,O_RDONLY);
+    fdbin = open(DEVICE_DPU_APP_SIG,O_RDONLY);
     if (fdbin < 0) {
         perror("Failed to open SERVER_DPU_APP_SIG\n");
         return;
@@ -56,7 +58,7 @@ static void load_sign_data(mram_t *area)
 #endif
 
     /* Copying encrypted user application code */
-    fdbin = open(SERVER_DPU_APP_TEXT_ENC,O_RDONLY);
+    fdbin = open(DEVICE_DPU_APP_TEXT_ENC,O_RDONLY);
     if (fdbin < 0) {
         perror("Failed to open SERVER_DPU_APP_TEXT_ENC");
         return;
@@ -64,15 +66,22 @@ static void load_sign_data(mram_t *area)
     area->app_text_size = read(fdbin, area->app_text, APP_MAX_SIZE);
     close(fdbin);
     /* Copying user application (Hello World) data */
-    fdbin = open(SERVER_DPU_APP_DATA,O_RDONLY);
+    fdbin = open(DEVICE_DPU_APP_DATA,O_RDONLY);
     if (fdbin < 0) {
         perror("Failed to open SERVER_DPU_APP_DATA");
         return;
     }
     area->app_data_size = read(fdbin, area->app_data, APP_MAX_SIZE);
-    area->verification_status = -1;
-
     close(fdbin);
+    /* Copy pseudo random in MRAM */
+    fdbin = open(PSEUDO_RANDOM,O_RDONLY);
+    if (fdbin < 0) {
+        perror("Failed to open PSEUDO_RANDOM");
+        return;
+    }
+    read(fdbin, (void *)&area->dpu_temperature_value, sizeof(area->dpu_temperature_value));
+    close(fdbin);
+    area->verification_status = -1;
 }
 
 int main(void)
@@ -114,7 +123,7 @@ int main(void)
         }
 
         /* Check plaintext against expected value */
-        fdbin = open(SERVER_DPU_APP_TEXT,O_RDONLY);
+        fdbin = open(DEVICE_DPU_APP_TEXT,O_RDONLY);
         if (fdbin < 0) {
             perror("Failed to open SERVER_DPU_APP_TEXT");
             break;
@@ -131,7 +140,7 @@ int main(void)
 
         /* Check hash value against expected value */
         /* Hash is calculated and copied by the dedicated DPU application */
-        fdbin = open(SERVER_DPU_APP_HASH,O_RDONLY);
+        fdbin = open(DEVICE_DPU_APP_HASH,O_RDONLY);
         if (fdbin < 0) {
             perror("Failed to open SERVER_DPU_APP_HASH");
             break;
@@ -154,7 +163,8 @@ int main(void)
         while (dpu1_mram->verification_status != 0){ }
         printf("#### ECDSA P-256 signature verification all good!\n");
         print_secure(fdpim);
-        printf ("Waiting from sensors data...\n");
+        printf ("dpu_temperature_value 0x%lx\n", dpu1_mram->dpu_temperature_value);
+
         fdbin = open("OK",O_CREAT);
         close(fdbin); 
 

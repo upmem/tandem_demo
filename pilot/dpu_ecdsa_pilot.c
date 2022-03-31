@@ -413,7 +413,6 @@ err:
 }
 
 __mram_noinit mram_t mram;
-extern __mram_ptr void *__sys_sec_mram_start;
 
 int main (void){
     __dma_aligned uint8_t local_sig_data[SIG_DATA_SIZE];

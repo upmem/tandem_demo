@@ -59,13 +59,11 @@ void der_to_sig (uint8_t *der, uint8_t *sig) {
 
 void print_secure(int fdpim)
 {
-    printf("======================= Display secure memory =======================\n");
     fflush(stdout);
-    usleep(20000);
+    usleep(200000);
     if (ioctl(fdpim, PIM_IOCTL_SHOW_S_MRAM, NULL) != 0) {
         printf("Failed to call TEE\n");
     }
-    printf("=====================================================================\n");
     fflush(stdout);
 }
 

@@ -20,7 +20,7 @@ HOST_CFLAGS += -DVERIFY_ONLY
 endif
 BIN_LDFLAGS += -Wl,-T$(ROOT_DIR)/dpu_common/dpu.lds -Os
 
-all: host dpu_app_server dpu_app_IoT
+all: host dpu_app_server dpu_app_device
 
 dpu_app_server:
 	$(DPU_CC) $(BIN_CFLAGS) -I$(ROOT_DIR)/include dpu_app_server.c $(BIN_LDFLAGS) -o dpu_app_server
@@ -41,10 +41,10 @@ dpu_app_server:
 	#encrypt the text section
 	openssl aes-256-ecb -nopad -in  dpu_app_server.text.pad -out  dpu_app_server.text.enc -K $(KEY)
 
-dpu_app_IoT:
-	$(DPU_CC) $(BIN_CFLAGS) dpu_app_IoT.c $(BIN_LDFLAGS) -o dpu_app_IoT
-	$(DPU_OBJCPY) -O binary --only-section=.text dpu_app_IoT dpu_app_IoT.text
-	$(DPU_OBJCPY) -O binary --only-section=.data dpu_app_IoT dpu_app_IoT.data
+dpu_app_device:
+	$(DPU_CC) $(BIN_CFLAGS) dpu_app_device.c -I$(ROOT_DIR)/include ../dpu_common/dpu_common.c $(BIN_LDFLAGS) -o dpu_app_device
+	$(DPU_OBJCPY) -O binary --only-section=.text dpu_app_device dpu_app_device.text
+	$(DPU_OBJCPY) -O binary --only-section=.data dpu_app_device dpu_app_device.data
     #Generata private key in PEM format - not needed private key is in the remo
 	#openssl ecparam -name prime256v1 -genkey -out ec-prime256v1-priv-key.pem
     #Generate public key (text) from private key (remove the initial 0x4) - not needed public key is in the repo
@@ -52,20 +52,20 @@ dpu_app_IoT:
 	#Copy bytes manually in a binary called public_key.bin - not needed public key is in the repo
 	#ghex public_key.bin
 	#Pad the application to the next 16 byte boundary
-	./file_pad dpu_app_IoT.text dpu_app_IoT.text.pad
+	./file_pad dpu_app_device.text dpu_app_device.text.pad
 	#Generate SHA-256
-	openssl dgst -binary -sha256 dpu_app_IoT.text.pad > dpu_app_IoT.sha256
+	openssl dgst -binary -sha256 dpu_app_device.text.pad > dpu_app_device.sha256
     #Generate the signature (remove 3046 then 022100 before each coordinate - if not preset discard the signature)
-	openssl dgst -sha256 -sign ec-prime256v1-priv-key.pem dpu_app_IoT.text.pad > dpu_app_IoT.sig
+	openssl dgst -sha256 -sign ec-prime256v1-priv-key.pem dpu_app_device.text.pad > dpu_app_device.sig
 	#encrypt the text section
-	openssl aes-256-ecb -nopad -in  dpu_app_IoT.text.pad -out  dpu_app_IoT.text.enc -K $(KEY)
-	tar -cvf dpu_app_IoT.tar dpu_app_IoT*
-	rm dpu_app_IoT.text* dpu_app_IoT.data dpu_app_IoT.sig dpu_app_IoT.sha256 dpu_app_IoT
+	openssl aes-256-ecb -nopad -in  dpu_app_device.text.pad -out  dpu_app_device.text.enc -K $(KEY)
+	rm dpu_app_device.tar && tar -cvf dpu_app_device.tar dpu_app_device*
+	rm dpu_app_device.text* dpu_app_device.data dpu_app_device.sig dpu_app_device.sha256 dpu_app_device
 
 host:
 	$(HOST_CC) $(HOST_CFLAGS) host_app_server.c ../host_common/host_common.c $(HOST_LDFLAGS) -o host_app_server
 
 clean:
-	@rm -f host_app_server  dpu_app_server  dpu_app_server.text dpu_app_server.text.pad dpu_app_server.text.enc dpu_app_server.data ec-secp256k1-priv-key.pem public_key.txt signature.hex signature.txt
+	@rm -f host_app_server  dpu_app_server  dpu_app_server.text dpu_app_server.text.pad dpu_app_server.text.enc dpu_app_server.data
 
-.PHONY: all clean dpu_app_server dpu_app_IoT
+.PHONY: all clean dpu_app_server dpu_app_device
