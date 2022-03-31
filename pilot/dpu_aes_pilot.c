@@ -10,7 +10,6 @@
 #include "config.h"
 
 __mram_noinit mram_t mram;
-extern __mram_ptr void *__sys_sec_mram_start;
 
 #define APP_TMP_BUFFER_SIZE (2048)
 /*
