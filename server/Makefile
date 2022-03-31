@@ -59,7 +59,7 @@ dpu_app_device:
 	openssl dgst -sha256 -sign ec-prime256v1-priv-key.pem dpu_app_device.text.pad > dpu_app_device.sig
 	#encrypt the text section
 	openssl aes-256-ecb -nopad -in  dpu_app_device.text.pad -out  dpu_app_device.text.enc -K $(KEY)
-	rm dpu_app_device.tar && tar -cvf dpu_app_device.tar dpu_app_device*
+	tar -cvf dpu_app_device.tar dpu_app_device*
 	rm dpu_app_device.text* dpu_app_device.data dpu_app_device.sig dpu_app_device.sha256 dpu_app_device
 
 host:
