@@ -1,11 +1,13 @@
 #ifndef DPU_COMMON_H
 #define DPU_COMMON_H
 
-#define APP_MAX_SIZE (0x100000)
+#define APP_MAX_SIZE (1024*1024)
 #define P256_PUB_KEY_SIZE ((256/8)*2)
 #define P256_SIG_SIZE ((256/8)*2)
 #define SHA256_SIZE (256/8)
 #define SIG_DATA_SIZE (P256_PUB_KEY_SIZE + SHA256_SIZE + P256_SIG_SIZE)
+#define AES_BLOCK_SIZE (16)
+
 
 #ifndef __dma_aligned
 #define __dma_aligned __attribute__((aligned(8)))
@@ -21,8 +23,8 @@ typedef struct {
     uint8_t		 app_text[APP_MAX_SIZE]  __dma_aligned;
     int app_data_size;
     uint8_t		 app_data[APP_MAX_SIZE]  __dma_aligned;
-    volatile uint64_t dpu_temperature_value;
-    volatile uint64_t encrypted_temp_value;
+    volatile uint8_t device_temp_sample[AES_BLOCK_SIZE];
+    volatile uint8_t encrypted_device_temp_sample[AES_BLOCK_SIZE];
     uint8_t		 code[] __dma_aligned;
 } mram_t;
 

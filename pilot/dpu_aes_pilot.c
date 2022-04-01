@@ -11,7 +11,10 @@
 
 __mram_noinit mram_t mram;
 
-#define APP_TMP_BUFFER_SIZE (2048)
+#define APP_TMP_BUFFER_SIZE (2*1024)
+
+__dma_aligned uint8_t app_text_buf[APP_TMP_BUFFER_SIZE];
+
 /*
  * Checkup routine
  */
@@ -19,7 +22,6 @@ int main(void)
 {
     int chunk, i, ret = -1;
     dpu_crypto_aes_context ctx;
-    uint8_t app_text_buf[APP_TMP_BUFFER_SIZE];
     int app_size =  mram.app_text_size;
     int remaining_data = app_size % APP_TMP_BUFFER_SIZE;
     do {

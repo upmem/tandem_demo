@@ -23,6 +23,7 @@
 #define DEVICE_DPU_APP_HASH "./dpu_app_device.sha256"
 #define DEVICE_DPU_APP_SIG "./dpu_app_device.sig"
 #define PSEUDO_RANDOM "/dev/urandom"
+#define TEMP_SAMPLE "temp_sample"
 
 
 static void load_sign_data(mram_t *area)
@@ -64,6 +65,8 @@ static void load_sign_data(mram_t *area)
         return;
     }
     area->app_text_size = read(fdbin, area->app_text, APP_MAX_SIZE);
+    printf ("area->app_text_size %d\n", area->app_text_size);
+
     close(fdbin);
     /* Copying user application (Hello World) data */
     fdbin = open(DEVICE_DPU_APP_DATA,O_RDONLY);
@@ -72,6 +75,9 @@ static void load_sign_data(mram_t *area)
         return;
     }
     area->app_data_size = read(fdbin, area->app_data, APP_MAX_SIZE);
+    printf ("area->app_data_size %d\n", area->app_data_size);
+    printf ("APP_MAX_SIZE %d\n", APP_MAX_SIZE);
+
     close(fdbin);
     /* Copy pseudo random in MRAM */
     fdbin = open(PSEUDO_RANDOM,O_RDONLY);
@@ -79,19 +85,20 @@ static void load_sign_data(mram_t *area)
         perror("Failed to open PSEUDO_RANDOM");
         return;
     }
-    read(fdbin, (void *)&area->dpu_temperature_value, sizeof(area->dpu_temperature_value));
+    read(fdbin, (void *)area->device_temp_sample, AES_BLOCK_SIZE);
     close(fdbin);
     area->verification_status = -1;
+    memset((void *)area->encrypted_device_temp_sample, 0, AES_BLOCK_SIZE);
 }
 
 int main(void)
 {
     mram_t *dpu0_mram, *dpu1_mram;
-    int fdpim, fdbin;
+    int i, fdpim, fdbin;
     int status = EXIT_FAILURE;
     uint8_t expected_hash[SHA256_SIZE];
     uint8_t expected_app_text[APP_MAX_SIZE];
-
+    //static uint8_t zero[AES_BLOCK_SIZE];
     /* Open pim node */
     fdpim = open("/dev/pim", O_RDWR);
     do {
@@ -155,21 +162,36 @@ int main(void)
         printf("#### SHA256 all good!\n");
 
         /* Offload ECDSA P-256 signature verification to DPUs */
-        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_ECDSA, dpu0_mram->code, dpu1_mram->code, DO_NOT_POLL_DPU) != 0) {
-            break;
+        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_ECDSA, dpu0_mram->code, dpu1_mram->code, POLL_DPU) != 0) {
+            //break;
         }
 
         /* check verification status */
         while (dpu1_mram->verification_status != 0){ }
         printf("#### ECDSA P-256 signature verification all good!\n");
         print_secure(fdpim);
-        printf ("dpu_temperature_value 0x%lx\n", dpu1_mram->dpu_temperature_value);
-
-        fdbin = open("OK",O_CREAT);
+        //while (memcmp((void *)dpu1_mram->encrypted_device_temp_sample, zero, AES_BLOCK_SIZE) == 0){}
+        printf ("device_temp_sample:\n");
+        for (i = 0; i < AES_BLOCK_SIZE; i++) {
+            printf ("%x", dpu1_mram->device_temp_sample[i]);
+        }
+        printf ("\n");
+        printf ("encrypted_device_temp_sample:\n");
+        for (i = 0; i < AES_BLOCK_SIZE; i++) {
+            printf ("%x", dpu1_mram->encrypted_device_temp_sample[i]);
+        }
+        printf ("\n");
+        fdbin = open(TEMP_SAMPLE, O_RDWR | O_CREAT);
+        if (fdbin < 0) {
+            perror("Failed to open TEMP_SAMPLE");
+            break;
+        }
+        write(fdbin, (const void *)dpu1_mram->encrypted_device_temp_sample, AES_BLOCK_SIZE);
         close(fdbin); 
 
         status = EXIT_SUCCESS;
     } while(0);
+    printf ("Device execution end.\n");
 
     /* Exit gracefully */
     close(fdpim);
