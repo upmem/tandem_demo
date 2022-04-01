@@ -20,10 +20,13 @@ HOST_CFLAGS += -DVERIFY_ONLY
 endif
 BIN_LDFLAGS += -Wl,-T$(ROOT_DIR)/dpu_common/dpu.lds -Os
 
-all: host dpu_app_server dpu_app_device
+LIBCRYPTO ?= $(ROOT_DIR)/libs/libcrypto.a
+LIBCRYPTO_ROOT_DIR=$(ROOT_DIR)/libs/libcrypto
+
+all: clean host dpu_app_server dpu_app_device
 
 dpu_app_server:
-	$(DPU_CC) $(BIN_CFLAGS) -I$(ROOT_DIR)/include dpu_app_server.c $(BIN_LDFLAGS) -o dpu_app_server
+	$(DPU_CC) $(BIN_CFLAGS) -I$(ROOT_DIR)/include dpu_app_server.c -I$(LIBCRYPTO_ROOT_DIR)/include $(BIN_LDFLAGS) $(LIBCRYPTO) -o dpu_app_server
 	$(DPU_OBJCPY) -O binary --only-section=.text dpu_app_server dpu_app_server.text
 	$(DPU_OBJCPY) -O binary --only-section=.data dpu_app_server dpu_app_server.data
     #Generata private key in PEM format - not needed private key is in the remo
@@ -42,7 +45,8 @@ dpu_app_server:
 	openssl aes-256-ecb -nopad -in  dpu_app_server.text.pad -out  dpu_app_server.text.enc -K $(KEY)
 
 dpu_app_device:
-	$(DPU_CC) $(BIN_CFLAGS) dpu_app_device.c -I$(ROOT_DIR)/include ../dpu_common/dpu_common.c $(BIN_LDFLAGS) -o dpu_app_device
+	$(DPU_CC) $(BIN_CFLAGS) dpu_app_device.c -I$(ROOT_DIR)/include -I$(LIBCRYPTO_ROOT_DIR)/include ../dpu_common/dpu_common.c $(BIN_LDFLAGS) $(LIBCRYPTO) -o dpu_app_device
+	$(DPU_OBJDUMP) -xS  dpu_app_device > dpu_app_device.objdump
 	$(DPU_OBJCPY) -O binary --only-section=.text dpu_app_device dpu_app_device.text
 	$(DPU_OBJCPY) -O binary --only-section=.data dpu_app_device dpu_app_device.data
     #Generata private key in PEM format - not needed private key is in the remo
@@ -66,6 +70,6 @@ host:
 	$(HOST_CC) $(HOST_CFLAGS) host_app_server.c ../host_common/host_common.c $(HOST_LDFLAGS) -o host_app_server
 
 clean:
-	@rm -f host_app_server  dpu_app_server  dpu_app_server.text dpu_app_server.text.pad dpu_app_server.text.enc dpu_app_server.data
+	@rm -f host_app_server  dpu_app_server  dpu_app_server.text dpu_app_server.text.pad dpu_app_server.text.enc dpu_app_server.data temp_sample OK dpu_app_device.tar
 
 .PHONY: all clean dpu_app_server dpu_app_device
