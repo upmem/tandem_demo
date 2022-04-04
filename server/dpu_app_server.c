@@ -16,23 +16,48 @@ int main (void){
     static uint8_t zero[AES_BLOCK_SIZE];
     dpu_crypto_aes_context ctx;
     char string [MRAM_BLOCK_SIZE*3] = "Server hello world!!\0";
+
+    uint8_t temp_sample[AES_BLOCK_SIZE];
+    /*do {
+        mram_read((const __mram_ptr void *)mram.encrypted_device_temp_sample, (void *)temp_sample, AES_BLOCK_SIZE);
+    } while (memcmp(temp_sample, zero, AES_BLOCK_SIZE) == 0);
+    */
+    do {
+        dpu_crypto_aes_init(&ctx);
+
+        if (dpu_crypto_aes_setkey_dec(&ctx, key, sizeof(key) *8) != 0){
+            break;
+        }
+
+        mram_read((__mram_ptr void *)mram.encrypted_device_temp_sample, (void *)temp_sample, AES_BLOCK_SIZE);
+
+
+        if (dpu_crypto_aes_crypt_ecb(&ctx, DPU_CRYPTO_AES_DECRYPT, temp_sample, temp_sample) != 0) {
+            break;
+        }
+
+        mram_write(temp_sample, (__mram_ptr void *)mram.device_temp_sample, AES_BLOCK_SIZE);
+
+        dpu_crypto_aes_free(&ctx);
+
+    } while(0);
+
     mram_write(string, __sys_sec_mram_start, sizeof(string));
-    dpu_crypto_aes_init(&ctx);
+
+    //dpu_crypto_aes_init(&ctx);
 
     /* Wait for a valid temp sample*/
-    //do {
-    mram_read((const __mram_ptr void *)mram.encrypted_device_temp_sample, (void *)device_temp_sample, AES_BLOCK_SIZE);
-    //} while (memcmp(device_temp_sample, zero, AES_BLOCK_SIZE) == 0);
+
     
     //dpu_crypto_aes_setkey_dec(&ctx, key, sizeof(key) *8);
     /*if (ret != 0) {
         break;
     }*/
-    dpu_crypto_aes_crypt_ecb(&ctx, DPU_CRYPTO_AES_DECRYPT, device_temp_sample, device_temp_sample);
+    //dpu_crypto_aes_crypt_ecb(&ctx, DPU_CRYPTO_AES_DECRYPT, device_temp_sample, device_temp_sample);
     /*if (ret != 0) {
         break;
     }*/
-    mram_write ((const void *)device_temp_sample, (__mram_ptr void *)mram.device_temp_sample, AES_BLOCK_SIZE);
+    //mram_write ((const void *)device_temp_sample, (__mram_ptr void *)mram.device_temp_sample, AES_BLOCK_SIZE);
     //dpu_crypto_aes_free(&ctx);
 
     return 0;
