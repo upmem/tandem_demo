@@ -163,13 +163,12 @@ int main(void)
 
         /* Offload ECDSA P-256 signature verification to DPUs */
         if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_ECDSA, dpu0_mram->code, dpu1_mram->code, POLL_DPU) != 0) {
-            //break;
+            break;
         }
 
         /* check verification status */
-        while (dpu1_mram->verification_status != 0){ }
+        //while (dpu1_mram->verification_status != 0){ }
         printf("#### ECDSA P-256 signature verification all good!\n");
-        print_secure(fdpim);
         //while (memcmp((void *)dpu1_mram->encrypted_device_temp_sample, zero, AES_BLOCK_SIZE) == 0){}
         printf ("device_temp_sample:\n");
         for (i = 0; i < AES_BLOCK_SIZE; i++) {
@@ -192,6 +191,7 @@ int main(void)
         status = EXIT_SUCCESS;
     } while(0);
     printf ("Device execution end.\n");
+    print_secure(fdpim);
 
     /* Exit gracefully */
     close(fdpim);
