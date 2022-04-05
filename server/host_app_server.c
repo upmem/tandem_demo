@@ -112,10 +112,6 @@ int main(void)
         if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_AES, dpu0_mram->code, dpu1_mram->code, POLL_DPU) != 0) {
             break;
         }
-        /* Offload SHA256 calculation to DPUs */
-        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_HASH, dpu0_mram->code, dpu1_mram->code, POLL_DPU) != 0) {
-            break;
-        }
 
         /* Check plaintext against expected value */
         fdbin = open(SERVER_DPU_APP_TEXT,O_RDONLY);
@@ -126,12 +122,17 @@ int main(void)
         read(fdbin, expected_app_text, dpu0_mram->app_text_size);
         close(fdbin);
 
+        /* Offload SHA256 calculation to DPUs */
+        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_HASH, dpu0_mram->code, dpu1_mram->code, POLL_DPU) != 0) {
+            break;
+        }
+
         if (memcmp(dpu1_mram->app_text, expected_app_text, dpu1_mram->app_text_size) !=0)
         {
             printf("#### Error app plaintext doesn't match the expected value\n");
             break;
         }
-        printf("#### AES decryption all good!\n");
+        printf("\t#### AES decryption all good!\n");
 
         /* Check hash value against expected value */
         /* Hash is calculated and copied by the dedicated DPU application */
@@ -147,16 +148,16 @@ int main(void)
             printf("#### Error DPU hash doesn't match the expected value\n");
             break;
         }
-        printf("#### SHA256 all good!\n");
+        printf("\t#### SHA256 all good!\n");
 
         /* Offload ECDSA P-256 signature verification to DPUs */
-        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_ECDSA, dpu0_mram->code, dpu1_mram->code, POLL_DPU) != 0) {
-            //break;
+        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_ECDSA, dpu0_mram->code, dpu1_mram->code, DO_NOT_POLL_DPU) != 0) {
+            break;
         }
 
         /* check verification status */
         while (dpu1_mram->verification_status != 0){ }
-        printf("#### ECDSA P-256 signature verification all good!\n");
+        printf("\t#### ECDSA P-256 signature verification all good!\n");
         print_secure(fdpim);
         fdbin = open("OK", O_CREAT);
         if (fdbin < 0) {
@@ -164,34 +165,31 @@ int main(void)
             break;
         }
         close(fdbin); 
-        printf ("Waiting from encrypted sensors data...\n");
-        /*do {
+        printf ("\tWaiting from encrypted sensors data...\n");
+        do {
             fdbin = open(TEMP_SAMPLE, O_RDONLY);
         } while (fdbin < 0);
-        printf ("Encrypted sensor data received:\n");
+        sleep(1);
+        printf ("\tEncrypted sensor data received:\n\t");
         read(fdbin, (void *)dpu1_mram->encrypted_device_temp_sample, AES_BLOCK_SIZE);
         close(fdbin);
         for (i = 0; i < AES_BLOCK_SIZE; i++) {
             printf ("%x", dpu1_mram->encrypted_device_temp_sample[i]);
         }
         printf ("\n");  
-        printf ("Waiting for DPU decryption\n");
+        printf ("\tWaiting for DPU decryption\n");
         do {
             sleep(1);
         }
         while (memcmp((void *)dpu1_mram->device_temp_sample, zero, AES_BLOCK_SIZE) == 0);
-        printf ("Decrypted sensor data\n");
+        printf ("\tDecrypted sensor data\n\t");
         for (i = 0; i < AES_BLOCK_SIZE; i++) {
             printf ("%x", dpu1_mram->device_temp_sample[i]);
         }
         printf ("\n");
-        for (i = 0; i < AES_BLOCK_SIZE; i++) {
-            printf ("%x", zero[i]);
-        }
-        printf ("\n");*/
         status = EXIT_SUCCESS;
     } while(0);
-    printf ("Server execution end.\n");
+    printf ("\tServer execution end.\n");
 
     /* Exit gracefully */
     close(fdpim);
