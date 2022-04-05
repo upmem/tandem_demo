@@ -155,42 +155,46 @@ int main(void)
             break;
         }
 
-        /* check verification status */
+        /* Check verification status */
         while (dpu1_mram->verification_status != 0){ }
         printf("\t#### ECDSA P-256 signature verification all good!\n");
         print_secure(fdpim);
+
+        /* Tell the shell script that the application has been successfully executed on DPU */
         fdbin = open("OK", O_CREAT);
         if (fdbin < 0) {
             perror("Failed to open SERVER_DPU_APP_HASH");
             break;
         }
         close(fdbin); 
+
         printf ("\tWaiting from encrypted sensors data...\n");
         do {
             fdbin = open(TEMP_SAMPLE, O_RDONLY);
+            sleep(1);
         } while (fdbin < 0);
-        sleep(1);
-        printf ("\tEncrypted sensor data received:\n\t");
         read(fdbin, (void *)dpu1_mram->encrypted_device_temp_sample, AES_BLOCK_SIZE);
         close(fdbin);
+
+        printf ("\tEncrypted temperature sample received:\n\t");
         for (i = 0; i < AES_BLOCK_SIZE; i++) {
             printf ("%x", dpu1_mram->encrypted_device_temp_sample[i]);
         }
         printf ("\n");  
-        printf ("\tWaiting for DPU decryption\n");
+        printf ("\tWaiting for DPU decryption...\n");
         do {
             sleep(1);
         }
         while (memcmp((void *)dpu1_mram->device_temp_sample, zero, AES_BLOCK_SIZE) == 0);
-        printf ("\tDecrypted sensor data\n\t");
+        printf ("\tDecrypted temperature sample:\n\t");
         for (i = 0; i < AES_BLOCK_SIZE; i++) {
             printf ("%x", dpu1_mram->device_temp_sample[i]);
         }
         printf ("\n");
         status = EXIT_SUCCESS;
     } while(0);
-    printf ("\tServer execution end.\n");
 
+    printf ("\tServer execution ends.\n");
     /* Exit gracefully */
     close(fdpim);
     exit(status);
