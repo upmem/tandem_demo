@@ -18,10 +18,10 @@ int main (void){
     char string [MRAM_BLOCK_SIZE*3] = "Server hello world!!\0";
 
     uint8_t temp_sample[AES_BLOCK_SIZE];
-    /*do {
+    do {
         mram_read((const __mram_ptr void *)mram.encrypted_device_temp_sample, (void *)temp_sample, AES_BLOCK_SIZE);
     } while (memcmp(temp_sample, zero, AES_BLOCK_SIZE) == 0);
-    */
+
     do {
         dpu_crypto_aes_init(&ctx);
 

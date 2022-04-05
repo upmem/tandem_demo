@@ -65,7 +65,6 @@ static void load_sign_data(mram_t *area)
         return;
     }
     area->app_text_size = read(fdbin, area->app_text, APP_MAX_SIZE);
-    printf ("area->app_text_size %d\n", area->app_text_size);
 
     close(fdbin);
     /* Copying user application (Hello World) data */
@@ -75,9 +74,6 @@ static void load_sign_data(mram_t *area)
         return;
     }
     area->app_data_size = read(fdbin, area->app_data, APP_MAX_SIZE);
-    printf ("area->app_data_size %d\n", area->app_data_size);
-    printf ("APP_MAX_SIZE %d\n", APP_MAX_SIZE);
-
     close(fdbin);
     /* Copy pseudo random in MRAM */
     fdbin = open(PSEUDO_RANDOM,O_RDONLY);
@@ -124,10 +120,6 @@ int main(void)
         if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_AES, dpu0_mram->code, dpu1_mram->code, POLL_DPU) != 0) {
             break;
         }
-        /* Offload SHA256 calculation to DPUs */
-        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_HASH, dpu0_mram->code, dpu1_mram->code, POLL_DPU) != 0) {
-            break;
-        }
 
         /* Check plaintext against expected value */
         fdbin = open(DEVICE_DPU_APP_TEXT,O_RDONLY);
@@ -138,12 +130,17 @@ int main(void)
         read(fdbin, expected_app_text, dpu0_mram->app_text_size);
         close(fdbin);
 
+        /* Offload SHA256 calculation to DPUs */
+        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_HASH, dpu0_mram->code, dpu1_mram->code, POLL_DPU) != 0) {
+            break;
+        }
+
         if (memcmp(dpu1_mram->app_text, expected_app_text, dpu1_mram->app_text_size) !=0)
         {
             printf("#### Error app plaintext doesn't match the expected value\n");
             break;
         }
-        printf("#### AES decryption all good!\n");
+        printf("\t#### AES decryption all good!\n");
 
         /* Check hash value against expected value */
         /* Hash is calculated and copied by the dedicated DPU application */
@@ -159,7 +156,7 @@ int main(void)
             printf("#### Error DPU hash doesn't match the expected value\n");
             break;
         }
-        printf("#### SHA256 all good!\n");
+        printf("\t#### SHA256 all good!\n");
 
         /* Offload ECDSA P-256 signature verification to DPUs */
         if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_ECDSA, dpu0_mram->code, dpu1_mram->code, POLL_DPU) != 0) {
@@ -168,14 +165,14 @@ int main(void)
 
         /* check verification status */
         //while (dpu1_mram->verification_status != 0){ }
-        printf("#### ECDSA P-256 signature verification all good!\n");
+        printf("\t#### ECDSA P-256 signature verification all good!\n");
         //while (memcmp((void *)dpu1_mram->encrypted_device_temp_sample, zero, AES_BLOCK_SIZE) == 0){}
-        printf ("device_temp_sample:\n");
+        printf ("\tdevice_temp_sample:\n\t");
         for (i = 0; i < AES_BLOCK_SIZE; i++) {
             printf ("%x", dpu1_mram->device_temp_sample[i]);
         }
         printf ("\n");
-        printf ("encrypted_device_temp_sample:\n");
+        printf ("\tencrypted_device_temp_sample:\n\t");
         for (i = 0; i < AES_BLOCK_SIZE; i++) {
             printf ("%x", dpu1_mram->encrypted_device_temp_sample[i]);
         }
@@ -190,7 +187,7 @@ int main(void)
 
         status = EXIT_SUCCESS;
     } while(0);
-    printf ("Device execution end.\n");
+    printf ("\tDevice execution end.\n");
     print_secure(fdpim);
 
     /* Exit gracefully */
