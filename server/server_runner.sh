@@ -1,5 +1,7 @@
 #/bin/sh -x
-#expected to be in Rennes
+#expected to be run in Orange FPGA, IP is UPMEM IP address
+IP=77.197.106.105
+PORT=1535
 echo "Environment cleaning"
 modprobe pim
 rm OK
@@ -12,5 +14,5 @@ do
 done
 echo "Sending encrypted application to the device"
 #cp dpu_app_device.tar ../device
-#share to Nice IP address
-scp -P 1535 dpu_app_device.tar root@77.197.106.105:/home/root/tandem_demo/device/
+#share to UPMEM FPGA
+scp -P $PORT dpu_app_device.tar root@$IP:/home/root/tandem_demo/device/
