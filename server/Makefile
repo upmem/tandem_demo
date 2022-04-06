@@ -35,14 +35,12 @@ dpu_app_server:
 	#openssl ec -in ec-prime256v1-priv-key.pem -text -noout  > public_key.txt
 	#Copy bytes manually in a binary called public_key.bin - not needed public key is in the repo
 	#ghex public_key.bin
-	#Pad the application to the next 16 byte boundary
-	./file_pad dpu_app_server.text dpu_app_server.text.pad
 	#Generate SHA-256
-	openssl dgst -binary -sha256 dpu_app_server.text.pad > dpu_app_server.sha256
+	openssl dgst -binary -sha256 dpu_app_server.text > dpu_app_server.sha256
     #Generate the signature (remove 3046 then 022100 before each coordinate - if not preset discard the signature)
-	openssl dgst -sha256 -sign ec-prime256v1-priv-key.pem dpu_app_server.text.pad > dpu_app_server.sig
+	openssl dgst -sha256 -sign ec-prime256v1-priv-key.pem dpu_app_server.text > dpu_app_server.sig
 	#encrypt the text section
-	openssl aes-256-ecb -nopad -in  dpu_app_server.text.pad -out  dpu_app_server.text.enc -K $(KEY)
+	openssl aes-256-ecb -nopad -in  dpu_app_server.text -out  dpu_app_server.text.enc -K $(KEY)
 
 dpu_app_device:
 	$(DPU_CC) $(BIN_CFLAGS) dpu_app_device.c -I$(ROOT_DIR)/include -I$(LIBCRYPTO_ROOT_DIR)/include ../dpu_common/dpu_common.c $(BIN_LDFLAGS) $(LIBCRYPTO) -o dpu_app_device
@@ -55,14 +53,12 @@ dpu_app_device:
 	#openssl ec -in ec-prime256v1-priv-key.pem -text -noout  > public_key.txt
 	#Copy bytes manually in a binary called public_key.bin - not needed public key is in the repo
 	#ghex public_key.bin
-	#Pad the application to the next 16 byte boundary
-	./file_pad dpu_app_device.text dpu_app_device.text.pad
 	#Generate SHA-256
-	openssl dgst -binary -sha256 dpu_app_device.text.pad > dpu_app_device.sha256
+	openssl dgst -binary -sha256 dpu_app_device.text > dpu_app_device.sha256
     #Generate the signature (remove 3046 then 022100 before each coordinate - if not preset discard the signature)
-	openssl dgst -sha256 -sign ec-prime256v1-priv-key.pem dpu_app_device.text.pad > dpu_app_device.sig
+	openssl dgst -sha256 -sign ec-prime256v1-priv-key.pem dpu_app_device.text > dpu_app_device.sig
 	#encrypt the text section
-	openssl aes-256-ecb -nopad -in  dpu_app_device.text.pad -out  dpu_app_device.text.enc -K $(KEY)
+	openssl aes-256-ecb -nopad -in  dpu_app_device.text -out  dpu_app_device.text.enc -K $(KEY)
 	tar -cvf dpu_app_device.tar dpu_app_device*
 	rm dpu_app_device.text* dpu_app_device.data dpu_app_device.sig dpu_app_device.sha256 dpu_app_device
 
@@ -70,6 +66,6 @@ host:
 	$(HOST_CC) $(HOST_CFLAGS) host_app_server.c ../host_common/host_common.c $(HOST_LDFLAGS) -o host_app_server
 
 clean:
-	@rm -f host_app_server  dpu_app_server  dpu_app_server.text dpu_app_server.text.pad dpu_app_server.text.enc dpu_app_server.data temp_sample OK dpu_app_device.tar
+	@rm -f host_app_server  dpu_app_server  dpu_app_server.text dpu_app_server.text.enc dpu_app_server.data temp_sample OK dpu_app_device.tar
 
 .PHONY: all clean dpu_app_server dpu_app_device

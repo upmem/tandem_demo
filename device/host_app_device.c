@@ -16,7 +16,7 @@
 #define PILOT_DPU_BINARY_HASH "../pilot/dpu_hash_pilot"
 
 /* DPU application run on server */
-#define DEVICE_DPU_APP_TEXT "./dpu_app_device.text.pad"
+#define DEVICE_DPU_APP_TEXT "./dpu_app_device.text"
 #define DEVICE_DPU_APP_TEXT_ENC "./dpu_app_device.text.enc"
 #define DEVICE_DPU_APP_DATA "./dpu_app_device.data"
 #define DEVICE_DPU_APP_PUBKEY "./public_key.bin"

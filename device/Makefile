@@ -26,6 +26,6 @@ host:
 	$(HOST_CC) $(HOST_CFLAGS) host_app_device.c ../host_common/host_common.c $(HOST_LDFLAGS) -o host_app_device
 
 clean:
-	@rm -f host_app_device dpu_app_device.tar  dpu_app_device  dpu_app_device.text dpu_app_device.text.pad dpu_app_device.text.enc dpu_app_device.data
+	@rm -f host_app_device dpu_app_device.tar  dpu_app_device  dpu_app_device.text dpu_app_device.text.enc dpu_app_device.data
 
 .PHONY: all clean  host
