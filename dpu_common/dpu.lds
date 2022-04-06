@@ -32,6 +32,7 @@ SECTIONS
     *(.text.__bootstrap)
     *(.text)
     *(.text.*)
+    . = ALIGN(32);
   } > iram
 
   .text_last : {
@@ -71,6 +72,7 @@ SECTIONS
   .data.__sys_host : {
     . = ALIGN(8);
     KEEP(*(.dpu_host))
+    . = ALIGN(8);
   } > wram
 
   .data.stacks (NOLOAD) : {

@@ -11,6 +11,7 @@ until [ -f ./dpu_app_device.tar ]
 do
     sleep 1
 done
+    sleep 5
 tar -xf dpu_app_device.tar
 echo "Encrypted application received, run it"
 ./host_app_device
