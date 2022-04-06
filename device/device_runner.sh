@@ -1,5 +1,7 @@
 #/bin/sh -x
-#expected to be in Nice
+#expected to be run in UPMEM FPGA, IP is Orange IP address
+IP=2.10.21.94
+PORT=1535
 echo "Environment cleaning"
 modprobe pim
 rm dpu_app_device.tar
@@ -18,5 +20,5 @@ do
 done
 echo "Sending encrypted sensor data to the server"
 #cp temp_sample ../server
-#share to Rennes IP address
-scp -P 1535 temp_sample root@2.10.21.94:/home/root/tandem_demo/server/
+#share to Orange IP address
+scp -P $PORT temp_sample root@$IP:/home/root/tandem_demo/server/
