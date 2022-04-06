@@ -15,9 +15,6 @@ KEY = $(shell hexdump -v -e '/1 "%02X"' < key)
 ifdef SIG_KO
 HOST_CFLAGS += -DSIG_KO
 endif
-ifdef VERIFY_ONLY
-HOST_CFLAGS += -DVERIFY_ONLY
-endif
 BIN_LDFLAGS += -Wl,-T$(ROOT_DIR)/dpu_common/dpu.lds -Os
 
 all: host host

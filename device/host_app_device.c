@@ -26,55 +26,13 @@
 #define TEMP_SAMPLE "temp_sample"
 
 
-static void load_sign_data(mram_t *area)
+static void load_mram(mram_t *area)
 {
     int fdbin;
-    /* DER format max signature size */
-    uint8_t der_signature [DER_FORMAT_MAX_SIZE];
-
-#ifdef VERIFY_ONLY
-    area->dpu_policy = DPU_POLICY_VERIFY_ONLY;
-#else
-    area->dpu_policy = DPU_POLICY_VERIFY_AND_JUMP;
-#endif
-    fdbin = open(DEVICE_DPU_APP_PUBKEY,O_RDONLY);
-    if (fdbin < 0) {
-        perror("Failed to open SERVER_DPU_APP_PUBKEY\n");
-        return;
-    }
-    read(fdbin, area->pub_key, P256_PUB_KEY_SIZE);
-    close(fdbin);
-    fdbin = open(DEVICE_DPU_APP_SIG,O_RDONLY);
-    if (fdbin < 0) {
-        perror("Failed to open SERVER_DPU_APP_SIG\n");
-        return;
-    }
-    read(fdbin, der_signature, DER_FORMAT_MAX_SIZE);
-    close(fdbin);
-
-    der_to_sig (der_signature, area->signature);
-
+    load_sign_data(area, DEVICE_DPU_APP_PUBKEY, DEVICE_DPU_APP_SIG, DEVICE_DPU_APP_TEXT_ENC, DEVICE_DPU_APP_DATA);
 #ifdef SIG_KO
     memset(area->signature, 0, 1);
 #endif
-
-    /* Copying encrypted user application code */
-    fdbin = open(DEVICE_DPU_APP_TEXT_ENC,O_RDONLY);
-    if (fdbin < 0) {
-        perror("Failed to open SERVER_DPU_APP_TEXT_ENC");
-        return;
-    }
-    area->app_text_size = read(fdbin, area->app_text, APP_MAX_SIZE);
-
-    close(fdbin);
-    /* Copying user application (Hello World) data */
-    fdbin = open(DEVICE_DPU_APP_DATA,O_RDONLY);
-    if (fdbin < 0) {
-        perror("Failed to open SERVER_DPU_APP_DATA");
-        return;
-    }
-    area->app_data_size = read(fdbin, area->app_data, APP_MAX_SIZE);
-    close(fdbin);
     /* Copy pseudo random in MRAM */
     fdbin = open(PSEUDO_RANDOM,O_RDONLY);
     if (fdbin < 0) {
@@ -83,7 +41,6 @@ static void load_sign_data(mram_t *area)
     }
     read(fdbin, (void *)area->device_temp_sample, AES_BLOCK_SIZE);
     close(fdbin);
-    area->verification_status = -1;
     memset((void *)area->encrypted_device_temp_sample, 0, AES_BLOCK_SIZE);
 }
 
@@ -113,8 +70,8 @@ int main(void)
         dpu0_mram = (mram_t*)(va);
         dpu1_mram = (mram_t*)((unsigned long)va+(DPU_CLUSTER_MEMORY_SIZE/2));
         /* load signature and public key in MRAM */
-        load_sign_data(dpu0_mram);
-        load_sign_data(dpu1_mram);
+        load_mram(dpu0_mram);
+        load_mram(dpu1_mram);
 
         /* Offload AES decryption to DPUs */
         if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_AES, dpu0_mram->code, dpu1_mram->code, POLL_DPU) != 0) {
