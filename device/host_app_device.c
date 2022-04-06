@@ -9,11 +9,7 @@
 #include "pim.h"
 #include "dpu_common.h"
 #include "host_common.h"
-
-/* In this demostrator the Host is also playing the role of Pilot */
-#define PILOT_DPU_BINARY_AES "../pilot/dpu_aes_pilot"
-#define PILOT_DPU_BINARY_ECDSA "../pilot/dpu_ecdsa_pilot"
-#define PILOT_DPU_BINARY_HASH "../pilot/dpu_hash_pilot"
+#include "pilot.h"
 
 /* DPU application run on server */
 #define DEVICE_DPU_APP_TEXT "./dpu_app_device.text"
@@ -44,14 +40,29 @@ static void load_mram(mram_t *area)
     memset((void *)area->encrypted_device_temp_sample, 0, AES_BLOCK_SIZE);
 }
 
+static void log_results(mram_t *area){
+    int i;
+    printf ("\tTemperature sample:\n\t");
+    for (i = 0; i < AES_BLOCK_SIZE; i++) {
+        printf ("%x", area->device_temp_sample[i]);
+    }
+    printf ("\n");
+
+    printf ("\tEncrypted temperature sample:\n\t");
+    for (i = 0; i < AES_BLOCK_SIZE; i++) {
+        printf ("%x", area->encrypted_device_temp_sample[i]);
+    }
+    printf ("\n");
+}
+
 int main(void)
 {
     mram_t *dpu0_mram, *dpu1_mram;
-    int i, fdpim, fdbin;
+    int fdpim, fdbin;
     int status = EXIT_FAILURE;
-    uint8_t expected_hash[SHA256_SIZE];
-    uint8_t expected_app_text[APP_MAX_SIZE];
+    /* static variables are initialized to 0 */
     static uint8_t zero[AES_BLOCK_SIZE];
+
     /* Open pim node */
     fdpim = open("/dev/pim", O_RDWR);
     do {
@@ -66,79 +77,34 @@ int main(void)
             perror("Failed to get DPU memory");
             break;
         }
-
         dpu0_mram = (mram_t*)(va);
         dpu1_mram = (mram_t*)((unsigned long)va+(DPU_CLUSTER_MEMORY_SIZE/2));
-        /* load signature and public key in MRAM */
+
+        /* load all the needed data in MRAM (e.g. encrypted app, signature, pub key) */
         load_mram(dpu0_mram);
         load_mram(dpu1_mram);
 
-        /* Offload AES decryption to DPUs */
-        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_AES, dpu0_mram->code, dpu1_mram->code, POLL_DPU) != 0) {
+        /* 
+         * Ask Pilot to perform application signature verification and decryption 
+         * In this demo Pilot is emulated by the Host
+        */
+        if (pilot_secure_reset(fdpim, dpu0_mram->code, dpu1_mram->code) != 0) {
             break;
         }
 
-        /* Check plaintext against expected value */
-        fdbin = open(DEVICE_DPU_APP_TEXT,O_RDONLY);
-        if (fdbin < 0) {
-            perror("Failed to open SERVER_DPU_APP_TEXT");
-            break;
-        }
-        read(fdbin, expected_app_text, dpu0_mram->app_text_size);
-        close(fdbin);
+        /* wait for verification status */
+        while (dpu1_mram->verification_status != 0);
 
-        /* Offload SHA256 calculation to DPUs */
-        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_HASH, dpu0_mram->code, dpu1_mram->code, POLL_DPU) != 0) {
+        if (result_sanity_checks(dpu1_mram, DEVICE_DPU_APP_TEXT, DEVICE_DPU_APP_HASH) != 0) {
             break;
         }
-
-        if (memcmp(dpu1_mram->app_text, expected_app_text, dpu1_mram->app_text_size) !=0)
-        {
-            printf("#### Error app plaintext doesn't match the expected value\n");
-            break;
-        }
-        printf("\t#### AES decryption all good!\n");
-
-        /* Check hash value against expected value */
-        /* Hash is calculated and copied by the dedicated DPU application */
-        fdbin = open(DEVICE_DPU_APP_HASH,O_RDONLY);
-        if (fdbin < 0) {
-            perror("Failed to open SERVER_DPU_APP_HASH");
-            break;
-        }
-        read(fdbin, expected_hash, SHA256_SIZE);
-        close(fdbin);
-        if (memcmp(dpu1_mram->hash, expected_hash, sizeof(expected_hash)) !=0)
-        {
-            printf("#### Error DPU hash doesn't match the expected value\n");
-            break;
-        }
-        printf("\t#### SHA256 all good!\n");
-
-        /* Offload ECDSA P-256 signature verification to DPUs */
-        if (dpu_pair_run(fdpim, PILOT_DPU_BINARY_ECDSA, dpu0_mram->code, dpu1_mram->code, DO_NOT_POLL_DPU) != 0) {
-            break;
-        }
-
-        /* check verification status */
-        while (dpu1_mram->verification_status != 0){ }
-        printf("\t#### ECDSA P-256 signature verification all good!\n");
 
         while (memcmp((void *)dpu1_mram->encrypted_device_temp_sample, zero, AES_BLOCK_SIZE) == 0){
             sleep(1);
         }
-        printf ("\tTemperature sample:\n\t");
-        for (i = 0; i < AES_BLOCK_SIZE; i++) {
-            printf ("%x", dpu1_mram->device_temp_sample[i]);
-        }
-        printf ("\n");
+        sleep(1);
 
-        printf ("\tEncrypted temperature sample:\n\t");
-        for (i = 0; i < AES_BLOCK_SIZE; i++) {
-            printf ("%x", dpu1_mram->encrypted_device_temp_sample[i]);
-        }
-        printf ("\n");
-
+        log_results(dpu1_mram);
         /* Save temperature sample for server sharing */
         fdbin = open(TEMP_SAMPLE, O_RDWR | O_CREAT);
         if (fdbin < 0) {
@@ -152,6 +118,7 @@ int main(void)
     } while(0);
 
     printf ("\tDevice execution ends.\n");
+    /* Print secure MRAM for debug purposes */
     print_secure(fdpim);
 
     /* Exit gracefully */

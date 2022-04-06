@@ -20,7 +20,7 @@ BIN_LDFLAGS += -Wl,-T$(ROOT_DIR)/dpu_common/dpu.lds -Os
 all: host host
 
 host:
-	$(HOST_CC) $(HOST_CFLAGS) host_app_device.c ../host_common/host_common.c $(HOST_LDFLAGS) -o host_app_device
+	$(HOST_CC) $(HOST_CFLAGS) host_app_device.c ../host_common/host_common.c ../pilot/pilot.c $(HOST_LDFLAGS) -o host_app_device
 
 clean:
 	@rm -f host_app_device dpu_app_device.tar  dpu_app_device  dpu_app_device.text dpu_app_device.text.enc dpu_app_device.data
