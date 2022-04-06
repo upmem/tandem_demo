@@ -139,7 +139,7 @@ void load_sign_data(mram_t *area, const char *pub_key, const char *der_sig, cons
 
     fdbin = open(pub_key ,O_RDONLY);
     if (fdbin < 0) {
-        perror("Failed to open SERVER_DPU_APP_PUBKEY\n");
+        perror("Failed to open DPU_APP_PUBKEY\n");
         return;
     }
     read(fdbin, area->pub_key, P256_PUB_KEY_SIZE);
@@ -147,7 +147,7 @@ void load_sign_data(mram_t *area, const char *pub_key, const char *der_sig, cons
 
     fdbin = open(der_sig ,O_RDONLY);
     if (fdbin < 0) {
-        perror("Failed to open SERVER_DPU_APP_SIG\n");
+        perror("Failed to open DPU_APP_SIG\n");
         return;
     }
     read(fdbin, der_signature, DER_FORMAT_MAX_SIZE);
@@ -158,7 +158,7 @@ void load_sign_data(mram_t *area, const char *pub_key, const char *der_sig, cons
     /* Copying encrypted user application code */
     fdbin = open(enc_app_text ,O_RDONLY);
     if (fdbin < 0) {
-        perror("Failed to open SERVER_DPU_APP_TEXT_ENC");
+        perror("Failed to open DPU_APP_TEXT_ENC");
         return;
     }
     area->app_text_size = read(fdbin, area->app_text, APP_MAX_SIZE);
@@ -167,11 +167,53 @@ void load_sign_data(mram_t *area, const char *pub_key, const char *der_sig, cons
     /* Copying user application (Hello World) data */
     fdbin = open(app_data,O_RDONLY);
     if (fdbin < 0) {
-        perror("Failed to open SERVER_DPU_APP_DATA");
+        perror("Failed to open DPU_APP_DATA");
         return;
     }
     area->app_data_size = read(fdbin, area->app_data, APP_MAX_SIZE);
     close(fdbin);
 
     area->verification_status = -1;
+}
+
+int result_sanity_checks(mram_t *area, const char *app_text, const char *hash) {
+    int fdbin;
+    uint8_t expected_hash[SHA256_SIZE];
+    uint8_t expected_app_text[APP_MAX_SIZE];
+    int ret = -1;
+    do {
+        /* Check plaintext against expected value */
+        fdbin = open(app_text, O_RDONLY);
+        if (fdbin < 0) {
+            perror("Failed to open SERVER_DPU_APP_TEXT");
+            break;
+        }
+        read(fdbin, expected_app_text, area->app_text_size);
+        close(fdbin);
+        if (memcmp(area->app_text, expected_app_text, area->app_text_size) !=0)
+        {
+            printf("#### Error app plaintext doesn't match the expected value\n");
+            break;
+        }
+        printf("\t#### AES decryption all good!\n");
+
+        /* Check hash value against expected value */
+        fdbin = open(hash, O_RDONLY);
+        if (fdbin < 0) {
+            perror("Failed to open SERVER_DPU_APP_HASH");
+            break;
+        }
+        read(fdbin, expected_hash, SHA256_SIZE);
+        close(fdbin);
+        if (memcmp(area->hash, expected_hash, sizeof(expected_hash)) !=0)
+        {
+            printf("#### Error DPU hash doesn't match the expected value\n");
+            break;
+        }
+        printf("\t#### SHA256 all good!\n");
+        printf("\t#### ECDSA P-256 signature verification all good!\n");
+        ret = 0;
+    }while(0);
+
+    return ret;
 }

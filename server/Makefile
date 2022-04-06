@@ -63,7 +63,7 @@ dpu_app_device:
 	rm dpu_app_device.text* dpu_app_device.data dpu_app_device.sig dpu_app_device.sha256 dpu_app_device
 
 host:
-	$(HOST_CC) $(HOST_CFLAGS) host_app_server.c ../host_common/host_common.c $(HOST_LDFLAGS) -o host_app_server
+	$(HOST_CC) $(HOST_CFLAGS) host_app_server.c ../host_common/host_common.c ../pilot/pilot.c $(HOST_LDFLAGS) -o host_app_server
 
 clean:
 	@rm -f host_app_server  dpu_app_server  dpu_app_server.text dpu_app_server.text.enc dpu_app_server.data temp_sample OK dpu_app_device.tar
