@@ -30,6 +30,6 @@ dpu_pilot:
 
 
 clean:
-	@rm -f dpu_ecdsa_pilot  dpu_ecdsa_pilot.objdump  
+	@rm -f dpu_ecdsa_pilot  dpu_ecdsa_pilot.objdump  dpu_hash_pilot dpu_aes_pilot
 
 .PHONY: all clean

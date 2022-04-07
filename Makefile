@@ -21,3 +21,10 @@ server:
 
 device:
 	make -C device
+
+clean:
+	make -C libs/libecc clean
+	make -C libs/libcrypto clean
+	make -C pilot clean
+	make -C server clean
+	make -C device clean
