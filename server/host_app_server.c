@@ -34,7 +34,7 @@ static void load_mram(mram_t *area)
 
 static void log_results(mram_t *area) {
     int i;
-    printf ("\tEncrypted temperature sample received:\n\t");
+    printf ("\tEncrypted temperature sample:\n\t");
     for (i = 0; i < AES_BLOCK_SIZE; i++) {
         printf ("%x", area->encrypted_device_temp_sample[i]);
     }
@@ -104,7 +104,7 @@ int main(void)
             sleep(1);
         } while (fdbin < 0);
 
-        printf ("\tPushing data to DPU for decryption...\n");
+        printf ("\tSample received, share it with DPU for decryption...\n");
         read(fdbin, (void *)dpu1_mram->encrypted_device_temp_sample, AES_BLOCK_SIZE);
         close(fdbin);
         /* Waiting for DPU decryption */
