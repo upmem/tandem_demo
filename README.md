@@ -1,6 +1,6 @@
 # tandem_demo
 
-1. App compilation
+1. Demo compilation
 ```
 $ make
 ```
