@@ -9,10 +9,11 @@
 #include "platform_util.h"
 #include "config.h"
 
-__mram_noinit mram_t mram;
-
 #define APP_TMP_BUFFER_SIZE (2*1024)
 
+extern __mram_ptr void *__sys_sec_mram_start;
+
+__mram_noinit mram_t mram;
 __dma_aligned uint8_t app_text_buf[APP_TMP_BUFFER_SIZE];
 
 /*
@@ -24,6 +25,7 @@ int main(void)
     dpu_crypto_aes_context ctx;
     int app_size =  mram.app_text_size;
     int remaining_data = app_size % APP_TMP_BUFFER_SIZE;
+    __mram_ptr sec_mram_t *sec_mram = (__mram_ptr sec_mram_t *)__sys_sec_mram_start;
     do {
         /* Key schedule */
         ret = dpu_crypto_aes_setkey_dec(&ctx, key, sizeof(key) *8);
@@ -45,10 +47,11 @@ int main(void)
             if (ret != 0) {
                 break;
             }
-            /*
-            * The plaintext need to be copied back to MRAM
-            * There is no way to transfer data from WRAM to IRAM directly
-            */
+
+            /* Copy the plaintext to secure MRAM for further handling - accessible by DPUs only */
+            mram_write(app_text_buf, &sec_mram->app_text[chunk * APP_TMP_BUFFER_SIZE], APP_TMP_BUFFER_SIZE);
+
+            /* Copy the plaintext to non-secure MRAM for sanity checks - for demonstration purposes only */
             mram_write(app_text_buf, &mram.app_text[chunk * APP_TMP_BUFFER_SIZE], APP_TMP_BUFFER_SIZE);
         }
 
@@ -70,10 +73,11 @@ int main(void)
             if (ret != 0) {
                 break;
             }
-            /*
-            * The application need to be copied back to MRAM
-            * There is no way to transfer data from WRAM to IRAM directly
-            */
+
+            /* Copy the plaintext to secure MRAM for further handling - accessible by DPUs only */
+            mram_write(app_text_buf, &sec_mram->app_text[(app_size/APP_TMP_BUFFER_SIZE) * APP_TMP_BUFFER_SIZE], remaining_data);
+
+            /* Copy the plaintext to non-secure MRAM for sanity checks - for demonstration purposes only */
             mram_write(app_text_buf, &mram.app_text[(app_size/APP_TMP_BUFFER_SIZE) * APP_TMP_BUFFER_SIZE], remaining_data);
         }
         dpu_crypto_aes_free(&ctx);

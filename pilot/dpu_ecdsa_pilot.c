@@ -412,20 +412,22 @@ err:
     return ret;
 }
 
+extern __mram_ptr void *__sys_sec_mram_start;
 __mram_noinit mram_t mram;
 
 int main (void){
-    __dma_aligned uint8_t local_sig_data[SIG_DATA_SIZE];
-    uint8_t *pub_key, *hash, *signature;
+    uint8_t pub_key[P256_PUB_KEY_SIZE];
+    uint8_t hash[SHA256_SIZE];
+    uint8_t signature[P256_SIG_SIZE];
     ec_params *params_ptr = (ec_params *)&params;
+    __mram_ptr sec_mram_t *sec_mram = ( __mram_ptr sec_mram_t *)__sys_sec_mram_start;
+
     mram.verification_status = VERIFICATION_STATUS_FAILURE;
 
     /* Read signature data from MRAM */
-    mram_read((__mram_ptr void *)mram.pub_key, (void *)local_sig_data, sizeof(local_sig_data));
-
-    pub_key = local_sig_data;
-    hash = &local_sig_data[P256_PUB_KEY_SIZE];
-    signature = &local_sig_data[P256_PUB_KEY_SIZE + SHA256_DIGEST_SIZE];
+    mram_read((__mram_ptr void *)mram.pub_key, (void *)pub_key, P256_PUB_KEY_SIZE);
+    mram_read((__mram_ptr void *)sec_mram->hash, (void *)hash, SHA256_SIZE);
+    mram_read((__mram_ptr void *)mram.signature, (void *)signature, P256_SIG_SIZE);
 
     params_ptr->ec_curve.a.ctx = &params_ptr->ec_fp;
     params_ptr->ec_curve.b.ctx = &params_ptr->ec_fp;
@@ -445,7 +447,7 @@ int main (void){
     if (ecdsa_signature_verification_digest (signature, pub_key, hash) == 0) {
         mram.verification_status = VERIFICATION_STATUS_SUCCESS;
         if (mram.dpu_policy == DPU_POLICY_VERIFY_AND_JUMP) {
-            dpu_jump((uint32_t)mram.app_data, mram.app_data_size, (uint32_t) mram.app_text, mram.app_text_size);
+            dpu_jump((uint32_t)mram.app_data, mram.app_data_size, (uint32_t) sec_mram->app_text, mram.app_text_size);
         }
     }
 
