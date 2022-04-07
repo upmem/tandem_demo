@@ -35,4 +35,4 @@ libcrypto: $(CRYPTO_OBJS)
 	$(DPU_CC) $(DPU_CFLAGS) -o $@ -c $<
 
 clean:
-	rm -f libdpucrypto.a $(CRYPTO_OBJS)
+	rm -f libdpucrypto.a $(CRYPTO_OBJS) $(LIB_FILE)
