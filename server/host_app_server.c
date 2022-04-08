@@ -98,7 +98,7 @@ int main(void)
         }
         close(fdbin); 
 
-        printf ("\tWaiting from encrypted sensors data...\n");
+        printf ("\tWaiting for encrypted sensor data...\n");
         do {
             fdbin = open(TEMP_SAMPLE, O_RDONLY);
             sleep(1);
